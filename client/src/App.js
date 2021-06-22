@@ -57,7 +57,7 @@ class App extends Component {
     this.setState({ votingState: vState });
     if(vState >= 3 )
       this.setState({ listProposals: await contract.methods.getAllDescription().call() });
-    if(vState >= 5 ) {}
+    if(vState >= 5 )
       this.setState({ winningDescription: await contract.methods.getWinner().call() });
     contract.events.WorkflowStatusChange().on('data', (event) => this.handleVotingState(event)).on('error', console.error);
     contract.events.VotingSessionStarted().on('data', (event) => this.handleVotingStart(event)).on('error', console.error);
