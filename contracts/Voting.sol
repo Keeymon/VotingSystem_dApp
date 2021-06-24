@@ -128,6 +128,10 @@ contract Voting is Ownable {
         emit VotingSessionEnded();
     }
     
+    /*
+    *   @notice: Counts all the votes and defines the winning proposal
+    *   @return The winning ID proposal
+    */
     function defineWinner() public onlyOwner checkStatus(WorkflowStatus.VotingSessionEnded) returns(uint) {
         require(numberProposals > 0, "Error, no proposal");
         for (uint i = 0; i < numberProposals; i++) {
@@ -138,7 +142,7 @@ contract Voting is Ownable {
         emit VotesTallied();
         return winningProposalId;
     }
-    
+
     function getWinner() public view checkStatus(WorkflowStatus.VotesTallied) returns(string memory) {
         return string(proposals[proposalsIndex[winningProposalId]].description);
     }
