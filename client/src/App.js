@@ -1,13 +1,15 @@
 import React, { Component } from "react";
 
 import VotingContract from "./contracts/Voting.json";
+import "react-notifications/lib/notifications.css";
+import {NotificationContainer, NotificationManager} from 'react-notifications';
 import getWeb3 from "./getWeb3";
 
 import "./App.css";
 import { divCeil } from "@ethereumjs/vm/dist/evm/opcodes";
 
 class App extends Component {
-  state = { web3: null, contract: null,
+  state = { web3: null, accounts: null, contract: null,
     votingState: null, votingStateVerbose: null,
     owner: null, addressRegister: null, proposalRegister: null, listProposals: null, idVote: "",
     winningDescription: "" };
@@ -53,29 +55,49 @@ class App extends Component {
 
   runInit = async () => {
     const { contract } = this.state;
+
+    const { ethereum } = window;
+    console.log(ethereum);
+    //if (ethereum && ethereum.on)
+    ethereum.on("accountsChanged", this.handleAccounts);
+    /*if (ethereum)
+      ethereum.on("accountsChanged", this.handleAccounts());*/
+
     const vState = await contract.methods.getStatus().call();
     this.setState({ votingState: vState });
     if(vState >= 3 )
       this.setState({ listProposals: await contract.methods.getAllDescription().call() });
-    if(vState >= 5 ) {}
+    if(vState >= 5 )
       this.setState({ winningDescription: await contract.methods.getWinner().call() });
     contract.events.WorkflowStatusChange().on('data', (event) => this.handleVotingState(event)).on('error', console.error);
     contract.events.VotingSessionStarted().on('data', (event) => this.handleVotingStart(event)).on('error', console.error);
     contract.events.VotesTallied().on('data', (event) => this.handleVoteTallied(event)).on('error', console.error);
+    contract.events.VoterRegistered().on('data', (event) => this.handleVoterRegistered(event)).on('error', console.error);
   };
+
+  handleAccounts = (accounts) => {
+    const { web3 } = this.state;
+    if (web3 != null && accounts.length > 0)
+      this.setState({ accounts });
+  }
+
+  handleVoterRegistered = async (event) => {
+    console.log("OK");
+    return () => { NotificationManager.info(event.returnValues[0]) };
+  }
 
   handleVotingState = async (event) => {
     this.setState({ votingState: event.returnValues[1] });
   }
 
   handleVotingStart = async (event) => {
-    const { accounts, contract } = this.state;
+    const { contract } = this.state;
     const list = await contract.methods.getAllDescription().call();
     this.setState({ listProposals: list });
   }
 
   handleVoteTallied = async (event) => {
-    const { accounts, contract } = this.state;
+    const { contract } = this.state;
     const description = await contract.methods.getWinner().call();
     this.setState({winningDescription: description});
   }
