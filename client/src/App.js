@@ -1,8 +1,8 @@
 import React, { Component } from "react";
 
 import VotingContract from "./contracts/Voting.json";
-import "react-notifications/lib/notifications.css";
-import {NotificationContainer, NotificationManager} from 'react-notifications';
+//import "react-notifications/lib/notifications.css";
+//import {NotificationContainer, NotificationManager} from 'react-notifications';
 import getWeb3 from "./getWeb3";
 
 import "./App.css";
@@ -30,7 +30,7 @@ class App extends Component {
         deployedNetwork && deployedNetwork.address,
       );
 
-      const owner = await instance.methods.owner().call();
+      const owner = web3.utils.toChecksumAddress(await instance.methods.owner().call());
 
       const votingStateVerbose = [
         "Enregistrement des participants",
@@ -55,13 +55,9 @@ class App extends Component {
 
   runInit = async () => {
     const { contract } = this.state;
-
     const { ethereum } = window;
-    console.log(ethereum);
-    //if (ethereum && ethereum.on)
+
     ethereum.on("accountsChanged", this.handleAccounts);
-    /*if (ethereum)
-      ethereum.on("accountsChanged", this.handleAccounts());*/
 
     const vState = await contract.methods.getStatus().call();
     this.setState({ votingState: vState });
@@ -79,11 +75,14 @@ class App extends Component {
     const { web3 } = this.state;
     if (web3 != null && accounts.length > 0)
       this.setState({ accounts });
+    console.log(accounts[0]);
   }
 
+  /*
+  * @dev: à compléter
+  */
   handleVoterRegistered = async (event) => {
     console.log("OK");
-    return () => { NotificationManager.info(event.returnValues[0]) };
   }
 
   handleVotingState = async (event) => {
@@ -168,16 +167,17 @@ class App extends Component {
   }
 
   render() {
-    if (!this.state.web3) {
+    const { web3 } = this.state;
+    if (!web3) {
       return <div>Loading Web3, accounts, and contract...</div>;
     }
 
     let display;
-    if (this.state.owner == this.state.accounts[0])
+    if (web3.utils.toChecksumAddress(this.state.owner) === web3.utils.toChecksumAddress(this.state.accounts[0]))
       display = <div>Je suis admin</div>;
     else
       display = <div>Je suis pas admin</div>;
-
+      
     return (
       <div className="App">
         <div>
@@ -199,7 +199,7 @@ class App extends Component {
             </label>
           <input type="submit" value="Envoyer" />
           </form>
-          <div className={this.state.owner == this.state.accounts[0] ? "contenu contenu-active" : "contenu"}>
+          <div className={web3.utils.toChecksumAddress(this.state.owner) == web3.utils.toChecksumAddress(this.state.accounts[0]) ? "contenu contenu-active" : "contenu"}>
             <button onClick={this.proposalsRegistrationStart}>Lancer le début des propositions</button>
           </div>
         </div>
@@ -213,14 +213,14 @@ class App extends Component {
            </label>
             <input type="submit" value="Envoyer" />
          </form>
-         <div className={this.state.owner == this.state.accounts[0] ? "contenu contenu-active" : "contenu"}>
+         <div className={web3.utils.toChecksumAddress(this.state.owner) == web3.utils.toChecksumAddress(this.state.accounts[0]) ? "contenu contenu-active" : "contenu"}>
           <button onClick={this.proposalsRegistrationEnd}>Fin des propositions</button>
          </div>
         </div>
 
         {/* Fin des propositions, en attente du début du vote */}
         <div className={this.state.votingState == 2 ? "contenu contenu-active" : "contenu"}>
-          <div className={this.state.owner == this.state.accounts[0] ? "contenu contenu-active" : "contenu"}>
+          <div className={web3.utils.toChecksumAddress(this.state.owner) == web3.utils.toChecksumAddress(this.state.accounts[0]) ? "contenu contenu-active" : "contenu"}>
             <button onClick={this.votingSessionStart}>Lancer le vote</button>
           </div>
         </div>
@@ -238,14 +238,14 @@ class App extends Component {
             </label>
           <input type="submit" value="Envoyer" />
           </form>
-          <div className={this.state.owner == this.state.accounts[0] ? "contenu contenu-active" : "contenu"}>
+          <div className={web3.utils.toChecksumAddress(this.state.owner) == web3.utils.toChecksumAddress(this.state.accounts[0]) ? "contenu contenu-active" : "contenu"}>
             <button onClick={this.votingSessionEnd}>Mettre fin au vote</button>
           </div>
         </div>
 
         {/* Fin du vote, en attente des résultats */}
         <div className={this.state.votingState == 4 ? "contenu contenu-active" : "contenu"}>
-          <div className={this.state.owner == this.state.accounts[0] ? "contenu contenu-active" : "contenu"}>
+          <div className={web3.utils.toChecksumAddress(this.state.owner) == web3.utils.toChecksumAddress(this.state.accounts[0]) ? "contenu contenu-active" : "contenu"}>
             <button onClick={this.defineWinner}>Comptabiliser les votes</button>
           </div>
         </div>
