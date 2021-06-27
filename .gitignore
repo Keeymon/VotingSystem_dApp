@@ -1,2 +1,3 @@
 /client/node-module
 /client/yarn.lock
+node_modules/
