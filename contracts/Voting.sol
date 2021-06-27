@@ -82,6 +82,10 @@ contract Voting is Ownable {
         voters[_voter].isRegistered = true;
         emit VoterRegistered(_voter);
     }
+
+    function isRegistered(address _address) public view returns (bool) {
+        return voters[_address].isRegistered;
+    }
     
     function proposalsRegistrationStart() public onlyOwner checkStatus(WorkflowStatus.RegisteringVoters) {
         changeStatus(WorkflowStatus.ProposalsRegistrationStarted);
@@ -122,6 +126,12 @@ contract Voting is Ownable {
         proposals[proposalsIndex[_proposalId]].voteCount++;
         emit Voted(msg.sender, _proposalId);
     }
+
+    function whoDidYouVoteFor(address _address) public view checkStatus(WorkflowStatus.VotingSessionStarted) returns(uint) {
+        require(voters[_address].isRegistered == true, "Not Registered");
+        require(voters[_address].hasVoted == true, "Did Not Vote");
+        return voters[_address].votedProposalId;
+    }
     
     function votingSessionEnd() public onlyOwner checkStatus(WorkflowStatus.VotingSessionStarted) {
         changeStatus(WorkflowStatus.VotingSessionEnded);
@@ -145,9 +155,5 @@ contract Voting is Ownable {
 
     function getWinner() public view checkStatus(WorkflowStatus.VotesTallied) returns(string memory) {
         return string(proposals[proposalsIndex[winningProposalId]].description);
-    }
-    
-    function whoDidYouVoteFor(address _address) public view checkStatus(WorkflowStatus.VotesTallied) returns(uint) {
-        return voters[_address].votedProposalId;
     }
 }
