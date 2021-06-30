@@ -123,6 +123,12 @@ contract('Voting', function (accounts) {
                 await expectRevert(this.VotingInstance.proposalRegister(proposal1, {from:voter2}),
                 "Proposal Already Registered");
             });
+
+            it("Revert: We need more proposals", async function() {
+                await this.VotingInstance.proposalsRegistrationStart({from:owner});
+                await expectRevert(this.VotingInstance.proposalsRegistrationEnd({from:owner}),
+                "We need more proposals");
+            });
         });
 
         describe("Fin des propositions, en attente du début du vote", function() {
