@@ -30,7 +30,7 @@ contract Voting is Ownable {
     event ProposalRegistered(uint proposalId);
     event VotingSessionStarted();
     event VotingSessionEnded();
-    event Voted (address voter, uint proposalId);
+    event Voted(address voter, uint proposalId);
     event VotesTallied();
     event WorkflowStatusChange(WorkflowStatus previousStatus, WorkflowStatus newStatus);
     
@@ -73,8 +73,8 @@ contract Voting is Ownable {
     }
     
     function changeStatus(WorkflowStatus _status) internal onlyOwner {
-        status = _status;
         emit WorkflowStatusChange(status, _status);
+        status = _status;
     }
     
     function voterRegister(address _voter) public onlyOwner checkStatus(WorkflowStatus.RegisteringVoters) {
@@ -94,11 +94,12 @@ contract Voting is Ownable {
     
     function proposalRegister(string memory _description) public checkStatus(WorkflowStatus.ProposalsRegistrationStarted) {
         require(voters[msg.sender].isRegistered == true, "Voter not Registered");
+        require(bytes(proposals[_description].description).length == 0, "Proposal Already Registered");
         //proposals.push(Proposal(_description, 0));
         proposalsIndex.push(_description);
-        numberProposals++;
         proposals[_description] = Proposal(_description, 0);
         emit ProposalRegistered(numberProposals);
+        numberProposals++;
     }
     
     function proposalsRegistrationEnd() public onlyOwner checkStatus(WorkflowStatus.ProposalsRegistrationStarted) {
@@ -143,7 +144,6 @@ contract Voting is Ownable {
     *   @return The winning ID proposal
     */
     function defineWinner() public onlyOwner checkStatus(WorkflowStatus.VotingSessionEnded) returns(uint) {
-        require(numberProposals > 0, "Error, no proposal");
         for (uint i = 0; i < numberProposals; i++) {
             if ( proposals[proposalsIndex[winningProposalId]].voteCount < proposals[proposalsIndex[i]].voteCount)
                 winningProposalId = i;
