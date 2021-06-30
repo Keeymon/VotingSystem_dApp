@@ -109,7 +109,7 @@ contract Voting is Ownable {
     }
     
     function getAllDescription() public view returns(string[] memory) {
-        require(status > WorkflowStatus.ProposalsRegistrationStarted, "Invalid Step");
+        require(status >= WorkflowStatus.ProposalsRegistrationStarted, "Invalid Step");
         return proposalsIndex;
     }
     
