@@ -1,17 +1,18 @@
+import "./App.css";
 import React, { Component } from "react";
-
 import VotingContract from "./contracts/Voting.json";
+import { Button, Card, ListGroup, Table, Form, Badge } from 'react-bootstrap';
+import 'bootstrap/dist/css/bootstrap.min.css';
 //import "react-notifications/lib/notifications.css";
 //import {NotificationContainer, NotificationManager} from 'react-notifications';
 import getWeb3 from "./getWeb3";
 
-import "./App.css";
 import { divCeil } from "@ethereumjs/vm/dist/evm/opcodes";
 
 class App extends Component {
-  state = { web3: null, accounts: null, contract: null,
-    votingState: null, votingStateVerbose: null,
-    owner: null, addressRegister: null, proposalRegister: null, listProposals: null, idVote: "",
+  state = { web3: null, accounts: null, contract: null, formError: null, formVote: null,
+    votingState: null, votingStateVerbose: null, listAddress: [],
+    owner: null, addressRegister: null, proposalRegister: null, listProposals: [], idVote: "",
     winningDescription: "" };
 
   componentDidMount = async () => {
@@ -54,17 +55,20 @@ class App extends Component {
   };
 
   runInit = async () => {
-    const { contract } = this.state;
+    const { contract, listAddress } = this.state;
     const { ethereum } = window;
 
     ethereum.on("accountsChanged", this.handleAccounts);
 
     const vState = await contract.methods.getStatus().call();
-    this.setState({ votingState: vState });
-    if(vState >= 3 )
+    this.setState({ votingState: parseInt(vState) });
+    if(this.state.votingState >= 3 )
       this.setState({ listProposals: await contract.methods.getAllDescription().call() });
-    if(vState >= 5 )
+    if(this.state.votingState >= 5 )
       this.setState({ winningDescription: await contract.methods.getWinner().call() });
+    let addresses = await contract.methods.getAddresses().call();
+    console.log(addresses);
+    this.setState({ listAddress: addresses });
     contract.events.WorkflowStatusChange().on('data', (event) => this.handleVotingState(event)).on('error', console.error);
     contract.events.VotingSessionStarted().on('data', (event) => this.handleVotingStart(event)).on('error', console.error);
     contract.events.VotesTallied().on('data', (event) => this.handleVoteTallied(event)).on('error', console.error);
@@ -82,7 +86,13 @@ class App extends Component {
   * @dev: à compléter
   */
   handleVoterRegistered = async (event) => {
-    console.log("OK");
+    const { listAddress } = this.state;
+    const updateListAddress = Array.from(listAddress);
+    console.log(event);
+    console.log(updateListAddress);
+    console.log(typeof updateListAddress);
+    updateListAddress.push(event.returnValues["voterAddress"]);
+    this.setState({ listAddress: updateListAddress });
   }
 
   handleVotingState = async (event) => {
@@ -91,7 +101,7 @@ class App extends Component {
 
   handleVotingStart = async (event) => {
     const { contract } = this.state;
-    const list = await contract.methods.getAllDescription().call();
+    const list = await contract.methods.getAllDescription().call(); // a changer
     this.setState({ listProposals: list });
   }
 
@@ -114,7 +124,15 @@ class App extends Component {
   handleSubmitVoterRegister = async (event) => {
     const { accounts, contract } = this.state;
     event.preventDefault();
-    await contract.methods.voterRegister(event.target.adressInput.value).send({ from: accounts[0] });
+
+    try {
+      this.setState({ formError: null });
+      await contract.methods.voterRegister(this.state.addressRegister).send({from: accounts[0]});
+    } catch (error) {
+      console.error(error.message);
+      this.setState({ formError: error.message });
+    }
+    //await contract.methods.voterRegister(event.target.value).send({ from: accounts[0] });
   }
 
   proposalsRegistrationStart = async () => {
@@ -167,16 +185,10 @@ class App extends Component {
   }
 
   render() {
-    const { web3 } = this.state;
+    const { web3, accounts, listAddress, listProposals, winningDescription, formError, votingState, addressRegister } = this.state;
     if (!web3) {
       return <div>Loading Web3, accounts, and contract...</div>;
     }
-
-    let display;
-    if (web3.utils.toChecksumAddress(this.state.owner) === web3.utils.toChecksumAddress(this.state.accounts[0]))
-      display = <div>Je suis admin</div>;
-    else
-      display = <div>Je suis pas admin</div>;
       
     return (
       <div className="App">
@@ -185,77 +197,65 @@ class App extends Component {
             <hr></hr>
         </div>
         <div>
-            <h3 className="text-center"> Status : {this.getStateVerbose(this.state.votingState)} </h3>
+          <h3 className="text-center"> Status : {this.getStateVerbose(votingState)} <Badge variant="secondary">{this.state.accounts[0]}</Badge></h3>
         </div>
-
-      {display}
-
-        {/* Enregistrement des participants */}
-        <div className={this.state.votingState == 0 ? "contenu contenu-active" : "contenu"}>
-          <form onSubmit={this.handleSubmitVoterRegister}>
-            <label>
-              Adresse :
-              <input name="adressInput" type="text" value={this.state.value} onChange={this.handleChangeVoterRegister} />
-            </label>
-          <input type="submit" value="Envoyer" />
-          </form>
-          <div className={web3.utils.toChecksumAddress(this.state.owner) == web3.utils.toChecksumAddress(this.state.accounts[0]) ? "contenu contenu-active" : "contenu"}>
-            <button onClick={this.proposalsRegistrationStart}>Lancer le début des propositions</button>
-          </div>
-        </div>
-
-        {/* Faites vos propositions */}
-        <div className={this.state.votingState == 1 ? "contenu contenu-active" : "contenu"}>
-          <form onSubmit={this.handleSubmitProposalsRegister}>
-            <label>
-              Proposition :
-              <input name="proposal" type="textarea" value={this.state.value} onChange={this.handleChangeProposalsRegister} />
-           </label>
-            <input type="submit" value="Envoyer" />
-         </form>
-         <div className={web3.utils.toChecksumAddress(this.state.owner) == web3.utils.toChecksumAddress(this.state.accounts[0]) ? "contenu contenu-active" : "contenu"}>
-          <button onClick={this.proposalsRegistrationEnd}>Fin des propositions</button>
-         </div>
-        </div>
-
-        {/* Fin des propositions, en attente du début du vote */}
-        <div className={this.state.votingState == 2 ? "contenu contenu-active" : "contenu"}>
-          <div className={web3.utils.toChecksumAddress(this.state.owner) == web3.utils.toChecksumAddress(this.state.accounts[0]) ? "contenu contenu-active" : "contenu"}>
-            <button onClick={this.votingSessionStart}>Lancer le vote</button>
-          </div>
-        </div>
-
-        {/* Vote en cours */}
-        <div className={this.state.votingState == 3 ? "contenu contenu-active" : "contenu"}>
-          <form onSubmit={this.handleSubmitVote}>
-            <label>
-              Choisir une proposition :
-              <select name="vote" value={this.state.idVote} onChange={this.handleChangeVote}>
-                {this.state.listProposals !== null && 
-                  this.state.listProposals.map((a, i) => <option value={i}>{a.description}</option>)
-                }
-              </select>
-            </label>
-          <input type="submit" value="Envoyer" />
-          </form>
-          <div className={web3.utils.toChecksumAddress(this.state.owner) == web3.utils.toChecksumAddress(this.state.accounts[0]) ? "contenu contenu-active" : "contenu"}>
-            <button onClick={this.votingSessionEnd}>Mettre fin au vote</button>
-          </div>
-        </div>
-
-        {/* Fin du vote, en attente des résultats */}
-        <div className={this.state.votingState == 4 ? "contenu contenu-active" : "contenu"}>
-          <div className={web3.utils.toChecksumAddress(this.state.owner) == web3.utils.toChecksumAddress(this.state.accounts[0]) ? "contenu contenu-active" : "contenu"}>
-            <button onClick={this.defineWinner}>Comptabiliser les votes</button>
-          </div>
-        </div>
-
-        {/* Résultats */}
-        <div className={this.state.votingState == 5 ? "contenu contenu-active" : "contenu"}>
-          <div>
-            {this.state.winningDescription}
-          </div>
-        </div>
+        
+        {(() => {
+          switch (votingState) {
+            case 0:
+              return (
+                <div>
+                  <h2>Registering Voters</h2>
+                  <div style={{display: 'flex', justifyContent: 'center'}}>
+                    <Card style={{ width: '50rem' }}>
+                      <Card.Header><strong>Registered voters</strong></Card.Header>
+                      <Card.Body>
+                        <ListGroup variant="flush">
+                          <ListGroup.Item>
+                            <Table striped bordered hover>
+                              <tbody>
+                                { listAddress !== null && listAddress.map((a) => <tr><td>{a}</td></tr>) }
+                              </tbody>
+                            </Table>
+                          </ListGroup.Item>
+                        </ListGroup>
+                      </Card.Body>
+                    </Card>
+                  </div>
+                  <br></br>
+                  <div style={{display: 'flex', justifyContent: 'center'}}>
+                    <Card style={{ width: '50rem' }}>
+                      <Card.Header><strong>Authorize new voters</strong></Card.Header>
+                      <Card.Body>
+                        <Form>
+                          <Form.Group>
+                            <Form.Control placeholder="Enter Address" isInvalid={Boolean(formError)} onChange={e => this.setState({ addressRegister: e.target.value, formError: null })} type="text" />
+                            <Form.Control.Feedback type="invalid">{formError}</Form.Control.Feedback>
+                            <Form.Label style={{float: 'left'}}>Or</Form.Label>
+                            <Form.Control defaultValue={'Default'} as="select" isInvalid={Boolean(formError)} onChange={e => this.setState({ addressRegister: e.target.value, formError: null })}>
+                              <option value="Default" disabled hidden>Select Address</option>
+                              {/* get all connected accounts ? */}
+                              { accounts !== null && accounts.map((a) => <option value={a}>{a}</option>) }
+                            </Form.Control>
+                            <br/>
+                            <Button name="adressInput" onClick={this.handleSubmitVoterRegister}>Authorize</Button>
+                          </Form.Group>
+                        </Form>
+                      </Card.Body>
+                    </Card>
+                    </div>
+                  <br></br>
+                  <Button onClick={this.proposalsRegistrationStart}>Start Proposals Registration</Button>
+                </div>
+              )
+              default :
+              return (
+                <div>
+                  <h2>404: Nothing to do here</h2>
+                </div>
+              )
+            }
+          })()}
       </div>
     );
   }

@@ -36,6 +36,7 @@ contract Voting is Ownable {
     
     uint private winningProposalId;
     uint numberProposals;
+    address[] public listAddress;
     mapping(address => Voter) voters;
     string[] proposalsIndex;
     mapping(string => Proposal) public proposals;
@@ -71,6 +72,10 @@ contract Voting is Ownable {
     function getStatus() public view returns(WorkflowStatus) {
         return status;
     }
+
+    function getAddresses() public view returns(address[] memory) {
+        return listAddress;
+    }
     
     function changeStatus(WorkflowStatus _status) internal onlyOwner {
         emit WorkflowStatusChange(status, _status);
@@ -80,6 +85,7 @@ contract Voting is Ownable {
     function voterRegister(address _voter) public onlyOwner checkStatus(WorkflowStatus.RegisteringVoters) {
         require(voters[_voter].isRegistered == false, "Already Registered");
         voters[_voter].isRegistered = true;
+        listAddress.push(_voter);
         emit VoterRegistered(_voter);
     }
 
